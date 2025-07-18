@@ -2,54 +2,91 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>ADPanel Complete</title>
+  <title>ADPanel v3</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<div class="container">
-  <h1>ADPanel Complete</h1>
+<div class="sidebar">
+  <h2>Node.js Version</h2>
+  <form action="/install-node" method="POST">
+    <select name="version">
+      <% nodeVersions.forEach(v => { %>
+        <option value="<%= v %>"><%= v %></option>
+      <% }) %>
+    </select>
+    <button>Install</button>
+  </form>
+</div>
+<div class="main">
+  <h1>ADPanel v3</h1>
   <form action="/upload" method="POST" enctype="multipart/form-data">
     <input type="file" name="file" accept=".zip" required>
-    <button>Upload ZIP</button>
+    <button>Upload Bot ZIP</button>
   </form>
-  <h2>Bots</h2>
   <% bots.forEach(bot => { %>
-  <div class="bot-box">
-    <h3><%= bot %></h3>
-    <form action="/start/<%= bot %>" method="POST"><button>Start</button></form>
-    <form action="/stop/<%= bot %>" method="POST"><button>Stop</button></form>
-    <form action="/restart/<%= bot %>" method="POST"><button>Restart</button></form>
-    <button onclick="showLogs('<%= bot %>')">Console</button>
-    <button onclick="showFiles('<%= bot %>')">File Manager</button>
-    <pre id="log-<%= bot %>" class="log"></pre>
-    <div id="files-<%= bot %>" class="files"></div>
-  </div>
+    <div class="bot-box">
+      <h3><%= bot %></h3>
+      <div class="controls">
+        <form action="/start/<%= bot %>" method="POST"><button>Start</button></form>
+        <form action="/stop/<%= bot %>" method="POST"><button>Stop</button></form>
+        <form action="/restart/<%= bot %>" method="POST"><button>Restart</button></form>
+      </div>
+      <div class="console">
+        <button onclick="showLogs('<%= bot %>')">Load Console</button>
+        <pre id="log-<%= bot %>"></pre>
+      </div>
+      <div class="file-manager">
+        <button onclick="showFiles('<%= bot %>')">File Manager</button>
+        <div id="files-<%= bot %>"></div>
+      </div>
+    </div>
   <% }) %>
 </div>
 <script>
-  const socket = io();
-  function showLogs(bot) {
-    document.getElementById('log-' + bot).textContent = '';
-    socket.emit('logs', bot);
-    socket.on('log', data => {
-      document.getElementById('log-' + bot).textContent += data;
+const socket = io();
+function showLogs(bot) {
+  const pre = document.getElementById('log-' + bot);
+  pre.textContent = '';
+  socket.emit('logs', bot);
+  socket.on('log', d => pre.textContent += d);
+}
+function showFiles(bot) {
+  fetch('/files/' + bot).then(res => res.json()).then(files => {
+    const container = document.getElementById('files-' + bot);
+    container.innerHTML = '';
+    files.forEach(f => {
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <span>${f}</span>
+        <button onclick="editFile('${bot}','${f}')">Edit</button>
+        <button onclick="deleteFile('${bot}','${f}')">Delete</button>
+      `;
+      container.appendChild(div);
     });
+  });
+}
+function editFile(bot, f) {
+  fetch(`/file/${bot}/${f}`).then(res => res.text()).then(txt => {
+    const content = prompt('Edit file: ' + f, txt);
+    if (content !== null) {
+      fetch(`/file/edit/${bot}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: `path=${encodeURIComponent(f)}&content=${encodeURIComponent(content)}`
+      }).then(()=> location.reload());
+    }
+  });
+}
+function deleteFile(bot, f) {
+  if(confirm('Delete ' + f + '?')) {
+    fetch(`/file/delete/${bot}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: `path=${encodeURIComponent(f)}`
+    }).then(()=> location.reload());
   }
-  function showFiles(bot) {
-    fetch('/files/' + bot).then(res => res.json()).then(files => {
-      const container = document.getElementById('files-' + bot);
-      container.innerHTML = '';
-      files.forEach(f => {
-        const link = document.createElement('a');
-        link.href = `/file/${bot}/${f}`;
-        link.textContent = f;
-        link.target = '_blank';
-        container.appendChild(link);
-        container.appendChild(document.createElement('br'));
-      });
-    });
-  }
+}
 </script>
 </body>
 </html>
