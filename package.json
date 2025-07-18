@@ -1,5 +1,5 @@
 {
-  "name": "adpanel-final-v5",
+  "name": "adpanel-final-v6",
   "version": "1.0.0",
   "main": "panel.js",
   "scripts": { "start": "node panel.js" },
