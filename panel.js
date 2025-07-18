@@ -98,7 +98,15 @@ io.on('connection', socket => {
   socket.on('action', data => {
     if (data.cmd === 'run') {
       if (proc) proc.kill();
-      proc = spawn('node', [data.file], { cwd: path.join(BOTS_DIR,data.bot) });
+      const cwd = path.join(BOTS_DIR, data.bot);
+      if (data.file.toLowerCase().endsWith('.html')) {
+        proc = spawn('npx', ['http-server', cwd, '-p', data.port], { cwd });
+      } else {
+        const options = { cwd };
+        if (data.port) options.env = { ...process.env, PORT: data.port };
+        proc = spawn('node', [data.file], options);
+      }
+      if (proc) proc.kill();
       proc.stdout.on('data', d=> socket.emit('output', d.toString()));
       proc.stderr.on('data', d=> socket.emit('output', d.toString()));
     } else if (data.cmd === 'stop') {

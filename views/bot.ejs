@@ -4,7 +4,7 @@
 <div class="controls">
   <select id="scriptSelect"></select>
   <label for="portInput">Port:</label>
-  <input type="number" id="portInput" value="3000" style="width:80px;margin-left:5px;">
+  <input type="number" id="portInput" value="3000" style="width:80px;margin-left:10px;">
   <button onclick="run()">Run</button>
   <button onclick="stop()">Stop</button>
   <select id="nodever">
@@ -58,11 +58,19 @@ function loadExplorer(path='') {
         li.appendChild(del);
         ul.appendChild(li);
       });
-      const scripts = data.entries.filter(e=>!e.isDir && (e.name.endsWith('.js') || e.name.endsWith('.html'))).map(e=>e.name);
+      const scripts = data.entries
+    .filter(e => !e.isDir && (e.name.endsWith('.js') || e.name.endsWith('.html')))
+    .map(e => e.name);
+  
       document.getElementById('scriptSelect').innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
     });
 }
-function run(){ document.getElementById('console').textContent=''; socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
+function run() {
+    document.getElementById('console').textContent = '';
+    const file = document.getElementById('scriptSelect').value;
+    const port = document.getElementById('portInput').value;
+    socket.emit('action', {bot, cmd: 'run', file, port});
+  }
 function stop(){ socket.emit('action',{bot,cmd:'stop'}); }
 function install(){ socket.emit('action',{bot,cmd:'install',version:document.getElementById('nodever').value}); }
 function upload(){
