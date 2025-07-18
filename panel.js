@@ -8,28 +8,64 @@ const fs = require('fs');
 const AdmZip = require('adm-zip');
 const { exec } = require('child_process');
 
+const upload = multer({ dest: 'uploads/' });
+const BOTS_DIR = path.join(__dirname, 'bots');
+
+if (!fs.existsSync(BOTS_DIR)) fs.mkdirSync(BOTS_DIR);
+
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
-const upload = multer({ dest: 'uploads/' });
+
+function findBotJS(folder) {
+  const files = fs.readdirSync(folder);
+  for (const file of files) {
+    const fullPath = path.join(folder, file);
+    if (fs.statSync(fullPath).isFile() && file.toLowerCase() === 'bot.js') {
+      return fullPath;
+    }
+  }
+  for (const file of files) {
+    const fullPath = path.join(folder, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      const found = findBotJS(fullPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 app.get('/', (req, res) => {
-  const bots = fs.readdirSync('./bots').filter(d => fs.statSync('./bots/' + d).isDirectory());
+  const bots = fs.readdirSync(BOTS_DIR).filter(d => fs.statSync(path.join(BOTS_DIR, d)).isDirectory());
   res.render('index', { bots });
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).send('No file uploaded');
   const zip = new AdmZip(req.file.path);
-  const botName = path.parse(req.file.originalname).name;
-  const extractPath = path.join(__dirname, 'bots', botName);
-  zip.extractAllTo(extractPath, true);
-  fs.unlinkSync(req.file.path);
+  const botName = path.parse(req.file.originalname).name.replace(/[^a-zA-Z0-9-_]/g, '');
+  const tempDir = path.join(__dirname, 'uploads', botName);
+  zip.extractAllTo(tempDir, true);
+
+  const botSource = findBotJS(tempDir);
+  if (!botSource) return res.status(400).send('bot.js nu a fost găsit în arhivă');
+
+  const targetDir = path.join(BOTS_DIR, botName);
+  if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true });
+  fs.mkdirSync(targetDir);
+  fs.readdirSync(tempDir).forEach(file => {
+    fs.renameSync(path.join(tempDir, file), path.join(targetDir, file));
+  });
+  fs.rmSync(req.file.path);
+  fs.rmSync(tempDir, { recursive: true });
   res.redirect('/');
 });
 
 app.post('/start/:bot', (req, res) => {
   const bot = req.params.bot;
-  exec(`pm2 start ./bots/${bot}/bot.js --name="${bot}"`, () => res.redirect('/'));
+  const botPath = findBotJS(path.join(BOTS_DIR, bot));
+  if (!botPath) return res.status(404).send('bot.js nu există');
+  exec(`pm2 start ${botPath} --name "${bot}"`, () => res.redirect('/'));
 });
 
 app.post('/stop/:bot', (req, res) => {
@@ -42,10 +78,36 @@ app.post('/restart/:bot', (req, res) => {
   exec(`pm2 restart ${bot}`, () => res.redirect('/'));
 });
 
-io.on('connection', socket => {
-  const logStream = exec('tail -f logs/bot.log');
-  logStream.stdout.on('data', data => socket.emit('log', data));
-  socket.on('disconnect', () => logStream.kill());
+app.get('/files/:bot', (req, res) => {
+  const dir = path.join(BOTS_DIR, req.params.bot);
+  if (!fs.existsSync(dir)) return res.status(404).send('Folder bot inexistent');
+  const files = [];
+  function walk(currentPath) {
+    fs.readdirSync(currentPath).forEach(name => {
+      const full = path.join(currentPath, name);
+      if (fs.statSync(full).isDirectory()) {
+        walk(full);
+      } else {
+        files.push(path.relative(dir, full));
+      }
+    });
+  }
+  walk(dir);
+  res.json(files);
 });
 
-http.listen(3000, () => console.log("ADPanel v2 running on http://localhost:3000"));
+app.get('/file/:bot/*', (req, res) => {
+  const relPath = req.params[0];
+  const fullPath = path.join(BOTS_DIR, req.params.bot, relPath);
+  if (!fs.existsSync(fullPath)) return res.status(404).send('File not found');
+  res.sendFile(fullPath);
+});
+
+io.on('connection', socket => {
+  socket.on('logs', bot => {
+    const log = exec(`pm2 logs ${bot} --no-color --lines 100`);
+    log.stdout.on('data', data => socket.emit('log', data));
+  });
+});
+
+http.listen(3000, () => console.log('ADPanel Complete running on http://localhost:3000'));

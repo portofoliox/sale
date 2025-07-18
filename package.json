@@ -1,10 +1,8 @@
 {
-  "name": "adpanel-v2",
+  "name": "adpanel-complete",
   "version": "1.0.0",
   "main": "panel.js",
-  "scripts": {
-    "start": "node panel.js"
-  },
+  "scripts": { "start": "node panel.js" },
   "dependencies": {
     "adm-zip": "^0.5.10",
     "ejs": "^3.1.9",
