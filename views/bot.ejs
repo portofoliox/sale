@@ -24,7 +24,7 @@ function loadExplorer(path=''){ fetch(`/explore/${bot}?path=${encodeURIComponent
   document.getElementById('breadcrumbs').innerHTML='<a href="#" onclick="loadExplorer('')">Root</a>'+(data.path?' / '+data.path:'');
   const ul=document.getElementById('entries');ul.innerHTML='';
   data.entries.forEach(e=>{ const li=document.createElement('li'); li.textContent=(e.isDir?'[DIR] ':'')+e.name;
-    li.onclick=()=> e.isDir?loadExplorer(currentPath?currentPath+'/'+e.name:e.name):socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
+    li.onclick=()=> { if(!e.isDir){ document.getElementById('scriptSelect').value=e.name; } else { loadExplorer(currentPath?currentPath+'/'+e.name:e.name):socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
     const del=document.createElement('button'); del.textContent='Delete';
     del.onclick=ev=>{ev.stopPropagation();socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir});loadExplorer(currentPath);};
     li.appendChild(del); ul.appendChild(li);
