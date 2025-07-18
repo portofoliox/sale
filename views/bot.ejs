@@ -56,7 +56,7 @@ function loadExplorer(path='') {
         li.appendChild(del);
         ul.appendChild(li);
       });
-      const scripts = data.entries.filter(e=>!e.isDir && e.name.endsWith('.js')).map(e=>e.name);
+      const scripts = data.entries.filter(e=>!e.isDir && (e.name.endsWith('.js') || e.name.endsWith('.html'))).map(e=>e.name);
       document.getElementById('scriptSelect').innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
     });
 }
