@@ -27,6 +27,15 @@ app.get('/', (req, res) => {
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
+  // Handle direct HTML file upload
+  if (req.file.originalname.toLowerCase().endsWith('.html')) {
+    const name = path.parse(req.file.originalname).name.replace(/[^\w-]/g, '');
+    const destDir = path.join(BOTS_DIR, name);
+    if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true, force: true });
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.renameSync(req.file.path, path.join(destDir, req.file.originalname));
+    return res.redirect('/');
+  }
   if (!req.file) return res.redirect('/');
   try {
     const zip = new AdmZip(req.file.path);
@@ -98,15 +107,7 @@ io.on('connection', socket => {
   socket.on('action', data => {
     if (data.cmd === 'run') {
       if (proc) proc.kill();
-      const cwd = path.join(BOTS_DIR, data.bot);
-      if (data.file.toLowerCase().endsWith('.html')) {
-        proc = spawn('npx', ['http-server', cwd, '-p', data.port], { cwd });
-      } else {
-        const options = { cwd };
-        if (data.port) options.env = { ...process.env, PORT: data.port };
-        proc = spawn('node', [data.file], options);
-      }
-      if (proc) proc.kill();
+      proc = spawn('node', [data.file], { cwd: path.join(BOTS_DIR,data.bot) });
       proc.stdout.on('data', d=> socket.emit('output', d.toString()));
       proc.stderr.on('data', d=> socket.emit('output', d.toString()));
     } else if (data.cmd === 'stop') {
