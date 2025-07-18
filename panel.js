@@ -99,9 +99,6 @@ io.on('connection', socket => {
     if (data.cmd === 'run') {
       if (proc) proc.kill();
       proc = spawn('node', [data.file], { cwd: path.join(BOTS_DIR,data.bot) });
-        proc.stdout.on('data', data => socket.emit('output', data.toString()));
-        proc.stderr.on('data', data => socket.emit('output', data.toString()));
-        proc.on('close', code => socket.emit('output', `Process exited with code ${code}\n`));
       proc.stdout.on('data', d=> socket.emit('output', d.toString()));
       proc.stderr.on('data', d=> socket.emit('output', d.toString()));
     } else if (data.cmd === 'stop') {
