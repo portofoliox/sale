@@ -5,6 +5,10 @@
   <select id="scriptSelect"></select>
   <button onclick="run()">Run</button>
   <button onclick="stop()">Stop</button>
+  <select id="nodever">
+    <% nodeVersions.forEach(v=>{ %><option value="<%=v%>"><%= v %></option><% }) %>
+  </select>
+  <button onclick="install()">Install Node.js</button>
 </div>
 <h2>Console</h2><pre id="console"></pre>
 <h2>File Manager</h2>
@@ -58,6 +62,7 @@ function loadExplorer(path='') {
 }
 function run(){ document.getElementById('console').textContent=''; socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
 function stop(){ socket.emit('action',{bot,cmd:'stop'}); }
+function install(){ socket.emit('action',{bot,cmd:'install',version:document.getElementById('nodever').value}); }
 function upload(){
   const f=document.getElementById('fileUpload').files[0]; if(!f) return;
   const fd = new FormData(); fd.append('file', f);

@@ -6,11 +6,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const AdmZip = require('adm-zip');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 
 const upload = multer({ dest: 'uploads/' });
 const BOTS_DIR = path.join(__dirname, 'bots');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const NODE_VERSIONS = ['14.x','16.x','18.x','20.x'];
+
 [BOTS_DIR, UPLOADS_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -55,9 +57,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
 
 app.get('/bot/:bot', (req, res) => {
   const bot = req.params.bot;
-  const botDir = path.join(BOTS_DIR,bot);
-  if (!fs.existsSync(botDir)) return res.redirect('/');
-  res.render('bot', { bot });
+  if (!fs.existsSync(path.join(BOTS_DIR,bot))) return res.redirect('/');
+  res.render('bot', { bot, nodeVersions: NODE_VERSIONS });
 });
 
 app.get('/explore/:bot', (req, res) => {
@@ -73,7 +74,7 @@ app.get('/explore/:bot', (req, res) => {
 });
 
 app.get('/file/:bot/*', (req, res) => {
-  const full = path.join(BOTS_DIR,req.params.bot,req.params[0]);
+  const full = path.join(BOTS_DIR, req.params.bot, req.params[0]);
   res.sendFile(full);
 });
 
@@ -103,8 +104,13 @@ io.on('connection', socket => {
     } else if (data.cmd === 'stop') {
       if (proc) proc.kill();
       socket.emit('output','Process stopped\n');
+    } else if (data.cmd === 'install') {
+      const script = `curl -fsSL https://deb.nodesource.com/setup_${data.version} | bash - && apt-get install -y nodejs`;
+      const p = exec(script);
+      p.stdout.on('data', d=> socket.emit('output', d.toString()));
+      p.stderr.on('data', d=> socket.emit('output', d.toString()));
     }
   });
 });
 
-http.listen(3000,()=>console.log('ADPanel_Final_v11 on http://localhost:3000'));
+http.listen(3000,()=>console.log('ADPanel_Final_v12 on http://localhost:3000'));
