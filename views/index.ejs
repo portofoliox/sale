@@ -1,17 +1,49 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>ADPanel v4</title>
-<link rel="stylesheet" href="/style.css">
-<script src="/socket.io/socket.io.js"></script>
-</head><body>
-<h1>ADPanel v4</h1>
-<div class="upload">
-  <input type="file" id="fileInput" accept=".zip"><button onclick="upload()">Upload ZIP</button>
-  <div id="progress"><div id="bar"></div></div>
-</div>
-<div id="bots"></div>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ADPanel v5</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>ADPanel v5</h1>
+  <div class="upload">
+    <input type="file" id="fileInput" accept=".zip"><button onclick="upload()">Upload ZIP</button>
+    <div id="progress"><div id="bar"></div></div>
+  </div>
+  <% bots.forEach(bot => { %>
+    <div class="bot">
+      <h3><%= bot %></h3>
+      <div class="controls">
+        <form action="/start/<%= bot %>" method="POST"><button>Start</button></form>
+        <form action="/stop/<%= bot %>" method="POST"><button>Stop</button></form>
+        <form action="/restart/<%= bot %>" method="POST"><button>Restart</button></form>
+      </div>
+      <div class="install-node">
+        <form action="/install-node/<%= bot %>" method="POST">
+          <select name="version">
+            <% nodeVersions.forEach(v => { %>
+              <option value="<%= v %>"><%= v %></option>
+            <% }) %>
+          </select>
+          <button>Install Node.js</button>
+        </form>
+      </div>
+      <div class="console">
+        <button onclick="showLogs('<%= bot %>')">Console</button>
+        <pre id="log-<%= bot %>"></pre>
+      </div>
+      <div class="files">
+        <button onclick="showFiles('<%= bot %>')">Files</button>
+        <div id="files-<%= bot %>"></div>
+      </div>
+    </div>
+  <% }) %>
 <script>
 function upload() {
   const file = document.getElementById('fileInput').files[0];
+  if (!file) return;
   const form = new FormData();
   form.append('file', file);
   const xhr = new XMLHttpRequest();
@@ -20,12 +52,27 @@ function upload() {
     const pct = (e.loaded/e.total)*100;
     document.getElementById('bar').style.width = pct+'%';
   };
-  xhr.onload = () => window.location.reload();
+  xhr.onload = () => location.reload();
   xhr.send(form);
 }
-
-// load bots
-fetch('/').then(()=>{
-  // reload full page, bots rendered server-side
-});
-</script></body></html>
+const socket = io();
+function showLogs(bot) {
+  const pre = document.getElementById('log-'+bot);
+  pre.textContent = '';
+  socket.emit('logs', bot);
+  socket.on('log', d => pre.textContent += d);
+}
+function showFiles(bot) {
+  fetch('/files/'+bot).then(res=>res.json()).then(files=>{
+    const div = document.getElementById('files-'+bot);
+    div.innerHTML = '';
+    files.forEach(f=>{
+      const link = document.createElement('a');
+      link.href = `/file/${bot}/${f}`; link.target='_blank'; link.textContent = f;
+      div.appendChild(link); div.appendChild(document.createElement('br'));
+    });
+  });
+}
+</script>
+</body>
+</html>

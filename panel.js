@@ -16,7 +16,6 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-// Find first .js file excluding node_modules
 function findBotEntry(folder) {
   const entries = fs.readdirSync(folder);
   for (const e of entries) {
@@ -35,7 +34,8 @@ function findBotEntry(folder) {
 
 app.get('/', (req, res) => {
   const bots = fs.readdirSync(BOTS_DIR);
-  res.render('index', { bots });
+  const nodeVersions = ['14.x', '16.x', '18.x', '20.x'];
+  res.render('index', { bots, nodeVersions });
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
@@ -72,6 +72,11 @@ app.post('/upload', upload.single('file'), (req, res) => {
   });
 });
 
-// File manager and logs left unchanged for brevity
+app.post('/install-node/:bot', (req, res) => {
+  const version = req.body.version;
+  exec(`curl -fsSL https://deb.nodesource.com/setup_${version} | bash - && apt-get install -y nodejs`, () => res.redirect('/'));
+});
+
+// File manager and logs unchanged...
 
 http.listen(3000, () => console.log('Running on http://localhost:3000'));
