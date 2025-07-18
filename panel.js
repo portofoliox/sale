@@ -18,7 +18,6 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-// Utils
 function findBotJS(folder) {
   const files = fs.readdirSync(folder);
   for (const file of files) {
@@ -37,23 +36,18 @@ function findBotJS(folder) {
   return null;
 }
 
-// Home
 app.get('/', (req, res) => {
   const bots = fs.readdirSync(BOTS_DIR);
   const nodeVersions = ['14.x', '16.x', '18.x', '20.x'];
   res.render('index', { bots, nodeVersions });
 });
 
-// Install Node.js version
 app.post('/install-node', (req, res) => {
   const version = req.body.version;
   const script = `curl -fsSL https://deb.nodesource.com/setup_${version} | bash - && apt-get install -y nodejs`;
-  exec(script, (err) => {
-    res.redirect('/');
-  });
+  exec(script, () => res.redirect('/'));
 });
 
-// Upload bot zip
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.redirect('/');
   const zip = new AdmZip(req.file.path);
@@ -73,7 +67,6 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.redirect('/');
 });
 
-// Start/Stop/Restart
 ['start','stop','restart'].forEach(cmd => {
   app.post(`/${cmd}/:bot`, (req, res) => {
     const bot = req.params.bot;
@@ -83,7 +76,6 @@ app.post('/upload', upload.single('file'), (req, res) => {
   });
 });
 
-// File manager API
 app.get('/files/:bot', (req, res) => {
   const dir = path.join(BOTS_DIR, req.params.bot);
   const list = [];
@@ -118,7 +110,6 @@ app.post('/file/delete/:bot', (req, res) => {
   res.redirect('/');
 });
 
-// Console logs
 io.on('connection', socket => {
   socket.on('logs', bot => {
     const log = exec(`pm2 logs ${bot} --no-color --lines 100`);
@@ -126,4 +117,4 @@ io.on('connection', socket => {
   });
 });
 
-http.listen(3000, () => console.log('ADPanel v3 running on http://localhost:3000'));
+http.listen(3000, () => console.log('ADPanel Final running on http://localhost:3000'));

@@ -1,7 +1,7 @@
-body { display: flex; margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
-.sidebar { width: 200px; background: #333; color: #fff; padding: 20px; }
-.main { flex: 1; padding: 20px; }
-.bot-box { background: #fff; margin-bottom: 20px; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.controls button, .sidebar button { margin: 5px; }
-.console pre { background: #000; color: #0f0; padding: 10px; height: 150px; overflow-y: auto; }
-.file-manager div { margin: 5px 0; }
+body { font-family: Arial, sans-serif; background: #111; color: #f2f2f2; margin: 0; padding: 20px; }
+h1 { margin-bottom: 20px; }
+.node-version, .upload { margin-bottom: 20px; }
+.bot { background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+.bot button { margin-right: 5px; margin-top: 5px; }
+.console pre { background: #000; color: #0f0; padding: 10px; max-height: 150px; overflow-y: auto; border-radius: 4px; }
+.files a { color: #4fc3f7; }
