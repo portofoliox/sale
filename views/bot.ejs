@@ -2,61 +2,65 @@
 <link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js"></script></head><body>
 <h1>Manage Bot: <%= bot %></h1>
 <div class="controls">
-  <select id="scriptSelect"><% scripts.forEach(s=>{ %><option><%= s %></option><% }) %></select>
-  <button onclick="action('run')">Run</button>
-  <button onclick="action('stop')">Stop</button>
+  <select id="scriptSelect"></select>
+  <button onclick="run()">Run</button>
+  <button onclick="stop()">Stop</button>
 </div>
 <h2>Console</h2><pre id="console"></pre>
-<h2>Files</h2>
-<input type="file" id="newfile">
-<button onclick="uploadFile()">Upload File</button>
-<ul id="filelist"></ul>
-<div id="editor" style="display:none;">
-  <h3 id="editname"></h3>
-  <textarea id="editcontent"></textarea><br>
-  <button onclick="save()">Save</button>
-  <button onclick="del()">Delete</button>
-</div>
+<h2>File Manager</h2>
+<div id="breadcrumbs"></div>
+<ul id="entries"></ul>
+<input type="file" id="fileUpload"><button onclick="upload()">Upload File</button>
 <script>
-const socket=io(), bot="<%= bot %>";
-function action(cmd){ socket.emit('action',{bot,cmd,file:document.getElementById('scriptSelect').value}); }
+const bot = "<%= bot %>";
+const socket = io();
 socket.on('output', d=>document.getElementById('console').textContent+=d);
-
-function loadFiles(){
-  const files=<%- JSON.stringify(files) %>;
-  const ul=document.getElementById('filelist'); ul.innerHTML='';
-  files.forEach(f=>{
-    const li=document.createElement('li');
-    li.textContent=f;
-    li.onclick=()=>{
-      socket.emit('action',{bot,cmd:'read',editPath:f});
-    };
-    ul.appendChild(li);
-  });
-}
 socket.on('fileData', d=>{
-  document.getElementById('editor').style.display='block';
-  document.getElementById('editname').textContent=d.path;
-  document.getElementById('editcontent').value=d.content;
+  const content=prompt('Edit '+d.path, d.content);
+  if(content!==null) socket.emit('writeFile',{bot, path:d.path, content});
 });
-function save(){
-  const p=document.getElementById('editname').textContent;
-  const c=document.getElementById('editcontent').value;
-  socket.emit('action',{bot,cmd:'write',editPath:p,content:c});
+let currentPath='';
+function loadExplorer(path='') {
+  fetch(`/explore/${bot}?path=${encodeURIComponent(path)}`)
+    .then(r=>r.json()).then(data=>{
+      currentPath = data.path;
+      // breadcrumbs
+      const bc = data.path.split('/').filter(Boolean);
+      document.getElementById('breadcrumbs').innerHTML = bc.map((p,i)=>`<a href="#" onclick="loadExplorer('${bc.slice(0,i+1).join('/')}')">${p}</a>`).join(' / ');
+      // entries
+      const ul = document.getElementById('entries'); ul.innerHTML='';
+      data.entries.forEach(e=>{
+        const li = document.createElement('li');
+        if(e.isDir) {
+          li.textContent = '[DIR] '+e.name;
+          li.onclick = ()=>loadExplorer(currentPath?currentPath+'/'+e.name:e.name);
+        } else {
+          li.textContent = e.name;
+          li.onclick = ()=> socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
+        }
+        // delete button
+        const del = document.createElement('button');
+        del.textContent='Delete';
+        del.onclick = () => socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir});
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      // update scriptSelect only top-level js
+      const scripts = data.entries.filter(e=>!e.isDir && e.name.endsWith('.js')).map(e=>e.name);
+      const sel = document.getElementById('scriptSelect');
+      sel.innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
+    });
 }
-function del(){
-  const p=document.getElementById('editname').textContent;
-  socket.emit('action',{bot,cmd:'delete',editPath:p});
-  document.getElementById('editor').style.display='none';
-  loadFiles();
+function run(){ socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
+function stop(){ socket.emit('action',{bot,cmd:'stop'}); }
+function upload(){
+  const f = document.getElementById('fileUpload').files[0];
+  if(!f) return;
+  const fd = new FormData();
+  fd.append('newfile', f);
+  fetch(`/uploadfile/${bot}?path=${encodeURIComponent(currentPath)}`,{method:'POST',body:fd})
+    .then(()=>loadExplorer(currentPath));
 }
-function uploadFile(){
-  const inp=document.getElementById('newfile');
-  if(!inp.files[0])return;
-  const fd=new FormData();
-  fd.append('newfile', inp.files[0]);
-  fetch(`/uploadfile/${bot}`,{method:'POST',body:fd}).then(()=> location.reload());
-}
-loadFiles();
+loadExplorer();
 </script>
 </body></html>
