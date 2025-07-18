@@ -1,13 +1,9 @@
 {
-  "name": "adpanel-final-v12",
+  "name": "adpanel-final-v13",
   "version": "1.0.0",
   "main": "panel.js",
-  "scripts": { "start": "node panel.js" },
+  "scripts": {"start":"node panel.js"},
   "dependencies": {
-    "adm-zip": "^0.5.10",
-    "ejs": "^3.1.9",
-    "express": "^4.19.2",
-    "multer": "^1.4.5-lts.1",
-    "socket.io": "^4.7.5"
+    "adm-zip":"^0.5.10","ejs":"^3.1.9","express":"^4.19.2","multer":"^1.4.5-lts.1","socket.io":"^4.7.5"
   }
 }
