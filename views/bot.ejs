@@ -1,50 +1,22 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Manage <%= bot %></title>
-<link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js"></script>
-</head><body>
+<link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js"></script></head><body>
 <h1>Manage Bot: <%= bot %></h1>
 <div class="controls">
-  <button onclick="action('start')">Start</button>
-  <button onclick="action('stop')">Stop</button>
-  <button onclick="action('restart')">Restart</button>
-  <select id="nodever">
-    <% nodeVersions.forEach(v=>{ %><option value="<%=v%>"><%= v %></option><%}) %>
-  </select>
-  <button onclick="install()">Install Node.js</button>
+  <select id="scriptSelect"><% scripts.forEach(s=>{ %><option><%= s %></option><% }) %></select>
+  <button onclick="run()">Run</button>
+  <button onclick="stop()">Stop</button>
 </div>
-<h2>Console</h2>
-<pre id="console"></pre>
-<h2>Files</h2>
-<ul id="filelist"></ul>
-<button onclick="refreshFiles()">Refresh Files</button>
-<div id="fileeditor" style="display:none;">
-  <h3 id="editfile"></h3>
-  <textarea id="filecontent"></textarea><br>
-  <button onclick="saveFile()">Save</button>
-  <button onclick="deleteFile()">Delete</button>
-</div>
+<h2>Console</h2><pre id="console"></pre>
 <script>
 const socket = io();
-const bot = "<%= bot %>";
-socket.emit('join', bot);
-function action(cmd){ socket.emit('action',{bot,cmd}); }
-function install(){ socket.emit('action',{bot,cmd:'install',version:document.getElementById('nodever').value}); }
-socket.on('output', d=>{
-  document.getElementById('console').textContent += d;
-});
-function refreshFiles(){ socket.emit('getFiles',bot); }
-socket.on('files', files=>{
-  const ul=document.getElementById('filelist'); ul.innerHTML='';
-  files.forEach(f=>{
-    const li=document.createElement('li'); li.textContent=f;
-    li.onclick=()=>{ socket.emit('readFile',{bot,file:f}); document.getElementById('fileeditor').style.display='block'; document.getElementById('editfile').textContent=f; };
-    ul.appendChild(li);
-  });
-});
-socket.on('fileContent', data=>{
-  document.getElementById('filecontent').value = data.content;
-});
-function saveFile(){ socket.emit('writeFile',{bot,file:document.getElementById('editfile').textContent,content:document.getElementById('filecontent').value}); }
-function deleteFile(){ socket.emit('deleteFile',{bot,file:document.getElementById('editfile').textContent}); document.getElementById('fileeditor').style.display='none'; refreshFiles(); }
-document.addEventListener('DOMContentLoaded',()=>refreshFiles());
+function run() {
+  document.getElementById('console').textContent = '';
+  const file = document.getElementById('scriptSelect').value;
+  socket.emit('action',{bot:'<%= bot %>',cmd:'run',file});
+}
+function stop() {
+  socket.emit('action',{bot:'<%= bot %>',cmd:'stop'});
+}
+socket.on('output', d=>document.getElementById('console').textContent += d);
 </script>
 </body></html>
