@@ -15,19 +15,18 @@
 const bot = "<%= bot %>";
 const socket = io();
 socket.on('output', d=>document.getElementById('console').textContent+=d);
-socket.on('fileData', d=>{
-  const content=prompt('Edit '+d.path, d.content);
-  if(content!==null) socket.emit('writeFile',{bot, path:d.path, content});
-});
+socket.on('fileData', d=>{ const content=prompt('Edit '+d.path, d.content); if(content!==null) socket.emit('writeFile',{bot, path:d.path, content}); });
+
 let currentPath='';
 function loadExplorer(path='') {
   fetch(`/explore/${bot}?path=${encodeURIComponent(path)}`)
     .then(r=>r.json()).then(data=>{
       currentPath = data.path;
-      // breadcrumbs
       const bc = data.path.split('/').filter(Boolean);
-      document.getElementById('breadcrumbs').innerHTML = bc.map((p,i)=>`<a href="#" onclick="loadExplorer('${bc.slice(0,i+1).join('/')}')">${p}</a>`).join(' / ');
-      // entries
+      document.getElementById('breadcrumbs').innerHTML = [''].concat(bc).map((p,i)=>{
+        const name = p || 'root';
+        return `<a href="#" onclick="loadExplorer('${bc.slice(0,i).join('/')}')">${name}</a>`;
+      }).join(' / ');
       const ul = document.getElementById('entries'); ul.innerHTML='';
       data.entries.forEach(e=>{
         const li = document.createElement('li');
@@ -36,30 +35,25 @@ function loadExplorer(path='') {
           li.onclick = ()=>loadExplorer(currentPath?currentPath+'/'+e.name:e.name);
         } else {
           li.textContent = e.name;
-          li.onclick = ()=> socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
+          li.onclick = ()=> { socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name}); };
         }
-        // delete button
         const del = document.createElement('button');
         del.textContent='Delete';
-        del.onclick = () => socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir});
+        del.onclick = e1=>{ e1.stopPropagation(); socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir}); };
         li.appendChild(del);
         ul.appendChild(li);
       });
-      // update scriptSelect only top-level js
       const scripts = data.entries.filter(e=>!e.isDir && e.name.endsWith('.js')).map(e=>e.name);
       const sel = document.getElementById('scriptSelect');
       sel.innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
     });
 }
-function run(){ socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
+function run(){ document.getElementById('console').textContent=''; socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
 function stop(){ socket.emit('action',{bot,cmd:'stop'}); }
 function upload(){
-  const f = document.getElementById('fileUpload').files[0];
-  if(!f) return;
-  const fd = new FormData();
-  fd.append('newfile', f);
-  fetch(`/uploadfile/${bot}?path=${encodeURIComponent(currentPath)}`,{method:'POST',body:fd})
-    .then(()=>loadExplorer(currentPath));
+  const f=document.getElementById('fileUpload').files[0]; if(!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  fetch(`/upload?`,{method:'POST',body:fd}).then(()=>loadExplorer(currentPath));
 }
 loadExplorer();
 </script>

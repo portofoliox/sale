@@ -10,14 +10,24 @@ const { spawn } = require('child_process');
 
 const upload = multer({ dest: 'uploads/' });
 const BOTS_DIR = path.join(__dirname, 'bots');
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+
+// ensure directories exist
+[BOTS_DIR, UPLOADS_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
 app.set('view engine','ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-// List bots
+function listJsFiles(folder) {
+  return fs.readdirSync(folder).filter(f=>f.endsWith('.js'));
+}
+
+// Home
 app.get('/', (req, res) => {
-  const bots = fs.readdirSync(BOTS_DIR);
+  const bots = fs.existsSync(BOTS_DIR) ? fs.readdirSync(BOTS_DIR) : [];
   res.render('index', { bots });
 });
 
@@ -27,9 +37,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
   try {
     const zip = new AdmZip(req.file.path);
     const name = path.parse(req.file.originalname).name.replace(/[^\w-]/g,'');
-    const temp = path.join(__dirname,'uploads',name);
+    const temp = path.join(UPLOADS_DIR, name);
     zip.extractAllTo(temp,true);
-    // find root with js files
     function findRoot(dir) {
       const files = fs.readdirSync(dir);
       if (files.some(f=>f.endsWith('.js'))) return dir;
@@ -43,6 +52,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
       return null;
     }
     const src = findRoot(temp);
+    if (!src) throw 'No js';
     const dest = path.join(BOTS_DIR,name);
     if (fs.existsSync(dest)) fs.rmSync(dest,{recursive:true,force:true});
     fs.renameSync(src,dest);
@@ -55,6 +65,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
 // Manage page
 app.get('/bot/:bot', (req, res) => {
   const bot = req.params.bot;
+  const botDir = path.join(BOTS_DIR,bot);
+  if (!fs.existsSync(botDir)) return res.redirect('/');
   res.render('bot', { bot });
 });
 
@@ -79,7 +91,7 @@ app.get('/file/:bot/*', (req, res) => {
   res.sendFile(full);
 });
 
-// File operations via socket
+// File operations and run/stop
 io.on('connection', socket => {
   let proc;
   socket.on('readFile', data => {
@@ -98,7 +110,6 @@ io.on('connection', socket => {
     socket.emit('output', `Deleted ${data.path}\n`);
   });
   socket.on('action', data => {
-    // run or stop
     if (data.cmd === 'run') {
       if (proc) proc.kill();
       proc = spawn('node', [data.file], { cwd: path.join(BOTS_DIR,data.bot) });
@@ -111,4 +122,4 @@ io.on('connection', socket => {
   });
 });
 
-http.listen(3000,()=>console.log('ADPanel_Final_v9 on http://localhost:3000'));
+http.listen(3000,()=>console.log('ADPanel_Final_v10 on http://localhost:3000'));
