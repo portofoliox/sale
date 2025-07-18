@@ -35,7 +35,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
     zip.extractAllTo(temp,true);
     function findRoot(dir) {
       const files = fs.readdirSync(dir);
-      if (files.some(f=>f.endsWith('.js'))) return dir;
+      if (files.some(f => f.endsWith('.js') || f.endsWith('.html'))) return dir;
       for (const f of files) {
         const full = path.join(dir,f);
         if (fs.statSync(full).isDirectory()) {
