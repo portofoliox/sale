@@ -1,46 +1,84 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Manage <%= bot %></title>
-<link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js"></script>
-</head><body>
+<link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js"></script></head><body>
 <h1>Manage Bot: <%= bot %></h1>
 <div class="controls">
   <select id="scriptSelect"></select>
-  <input type="number" id="portInput" min="1000" max="65000" placeholder="Port" value="3001">
-  <button onclick="run()">Start</button>
+  <label for="portInput">Port:</label>
+  <input type="number" id="portInput" value="3000" style="width:80px;margin-left:5px;">
+  <button onclick="run()">Run</button>
   <button onclick="stop()">Stop</button>
+  <select id="nodever">
+    <% nodeVersions.forEach(v=>{ %><option value="<%=v%>"><%= v %></option><% }) %>
+  </select>
+  <button onclick="install()">Install Node.js</button>
 </div>
 <h2>Console</h2><pre id="console"></pre>
-<h2>File Manager</h2><div id="breadcrumbs"></div><ul id="entries"></ul>
+<h2>File Manager</h2>
+<div id="breadcrumbs"></div>
+<ul id="entries"></ul>
 <input type="file" id="fileUpload"><button onclick="upload()">Upload File</button>
-<div id="editor" style="display:none;"><h3 id="edit-path"></h3><textarea id="edit-content"></textarea><br>
-<button onclick="save()">Save</button><button onclick="discard()">Discard</button></div>
+<div id="editor" style="display:none;">
+  <h3 id="edit-path"></h3>
+  <textarea id="edit-content"></textarea><br>
+  <button onclick="save()">Save</button>
+  <button onclick="discard()">Discard</button>
+</div>
 <script>
-const bot="<%= bot %>", socket=io(), consoleEl=document.getElementById('console');
-socket.on('output',d=>consoleEl.textContent+=d);
-socket.on('fileData',d=>{document.getElementById('editor').style.display='block';document.getElementById('edit-path').textContent=d.path;const ta=document.getElementById('edit-content');ta.value=d.content;ta.dataset.original=d.content;});
+const bot = "<%= bot %>";
+const socket = io();
+socket.on('output', d=>document.getElementById('console').textContent+=d);
+socket.on('fileData', d=> {
+  document.getElementById('editor').style.display='block';
+  document.getElementById('edit-path').textContent = d.path;
+  const ta = document.getElementById('edit-content');
+  ta.value = d.content;
+  ta.dataset.original = d.content;
+});
 
 let currentPath='';
-function loadExplorer(path=''){ fetch(`/explore/${bot}?path=${encodeURIComponent(path)}`).then(r=>r.json()).then(data=>{
-  currentPath=data.path;
-  document.getElementById('breadcrumbs').innerHTML='<a href="#" onclick="loadExplorer('')">Root</a>'+(data.path?' / '+data.path:'');
-  const ul=document.getElementById('entries');ul.innerHTML='';
-  data.entries.forEach(e=>{ const li=document.createElement('li'); li.textContent=(e.isDir?'[DIR] ':'')+e.name;
-    li.onclick=()=> { if(!e.isDir){ document.getElementById('scriptSelect').value=e.name; } else { loadExplorer(currentPath?currentPath+'/'+e.name:e.name):socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
-    const del=document.createElement('button'); del.textContent='Delete';
-    del.onclick=ev=>{ev.stopPropagation();socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir});loadExplorer(currentPath);};
-    li.appendChild(del); ul.appendChild(li);
-  });
-  const scripts = data.entries.filter(e=>!e.isDir&&(e.name.endsWith('.js')||e.name.endsWith('.html'))).map(e=>e.name);
-  document.getElementById('scriptSelect').innerHTML = scripts.map(s=>`<option>${s}</option>`).join('');
-}); }
-function run(){ consoleEl.textContent=''; const file=document.getElementById('scriptSelect').value; const ext=file.split('.').pop();
-  if(ext==='html') socket.emit('action',{bot,cmd:'run-html',file,port:document.getElementById('portInput').value});
-  else socket.emit('action',{bot,cmd:'run-js',file});
+function loadExplorer(path='') {
+  fetch(`/explore/${bot}?path=${encodeURIComponent(path)}`)
+    .then(r=>r.json()).then(data=>{
+      currentPath = data.path;
+      document.getElementById('breadcrumbs').innerHTML = '<a href="#" onclick="loadExplorer(\'\')">Root</a>' + 
+  (data.path ? ' / ' + data.path.split('/').join(' / ') : '');
+      const ul = document.getElementById('entries'); ul.innerHTML='';
+      data.entries.forEach(e=>{
+        const li = document.createElement('li');
+        if(e.isDir) {
+          li.textContent='[DIR] '+e.name;
+          li.onclick = ()=>loadExplorer(currentPath?currentPath+'/'+e.name:e.name);
+        } else {
+          li.textContent=e.name;
+          li.onclick = ()=> socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
+        }
+        const del = document.createElement('button');
+        del.textContent='Delete';
+        del.onclick = ev=>{ ev.stopPropagation(); socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir}); loadExplorer(currentPath); };
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      const scripts = data.entries.filter(e=>!e.isDir && e.name.endsWith('.js')).map(e=>e.name);
+      document.getElementById('scriptSelect').innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
+    });
 }
+function run(){ document.getElementById('console').textContent=''; socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
 function stop(){ socket.emit('action',{bot,cmd:'stop'}); }
-function upload(){ const f=document.getElementById('fileUpload').files[0]; if(!f)return; const fd=new FormData(); fd.append('file',f);
-  fetch('/upload',{method:'POST',body:fd}).then(()=>loadExplorer(currentPath)); }
-function save(){ socket.emit('writeFile',{bot,path:document.getElementById('edit-path').textContent,content:document.getElementById('edit-content').value}); }
-function discard(){ const ta=document.getElementById('edit-content'); ta.value=ta.dataset.original; }
-document.addEventListener('DOMContentLoaded',()=>loadExplorer());
+function install(){ socket.emit('action',{bot,cmd:'install',version:document.getElementById('nodever').value}); }
+function upload(){
+  const f=document.getElementById('fileUpload').files[0]; if(!f) return;
+  const fd = new FormData(); fd.append('file', f);
+  fetch(`/upload?`,{method:'POST',body:fd}).then(()=>loadExplorer(currentPath));
+}
+function save(){
+  const path = document.getElementById('edit-path').textContent;
+  const content = document.getElementById('edit-content').value;
+  socket.emit('writeFile',{bot,path,content});
+}
+function discard(){
+  const ta = document.getElementById('edit-content');
+  ta.value = ta.dataset.original;
+}
+loadExplorer();
 </script>
 </body></html>

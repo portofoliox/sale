@@ -1,1 +1,10 @@
-/* styles */
+body{font-family:sans-serif;background:#282c34;color:#abb2bf;padding:20px;}
+.bot-item{background:#3e4451;padding:10px;border-radius:5px;margin:10px 0;}
+.controls{margin-bottom:20px;}
+select,button,input,textarea{margin:5px;}
+#console{background:#1e1e1e;color:#98c379;padding:10px;height:200px;overflow-y:auto;border-radius:5px;}
+#entries{background:#21252b;padding:10px;border-radius:5px;}
+#entries li{cursor:pointer;padding:5px;color:#61dafb;list-style:none;}
+#breadcrumbs a{color:#61dafb;text-decoration:none;}
+#editor{background:#21252b;padding:10px;border-radius:5px;margin-top:10px;}
+#edit-content{width:100%;height:300px;background:#282c34;color:#abb2bf;padding:10px;border:none;}
