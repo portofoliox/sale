@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ADPanel v2</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>ADPanel v2</h1>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".zip" required>
+      <button type="submit">Upload Bot ZIP</button>
+    </form>
+    <h2>Bots</h2>
+    <% if (bots.length === 0) { %>
+      <p>No bots found.</p>
+    <% } else { %>
+      <% bots.forEach(bot => { %>
+        <div class="bot">
+          <strong><%= bot %></strong>
+          <form action="/start/<%= bot %>" method="POST"><button>Start</button></form>
+          <form action="/stop/<%= bot %>" method="POST"><button>Stop</button></form>
+          <form action="/restart/<%= bot %>" method="POST"><button>Restart</button></form>
+        </div>
+      <% }) %>
+    <% } %>
+    <pre id="console"></pre>
+  </div>
+  <script>
+    const socket = io();
+    const consoleOutput = document.getElementById("console");
+    socket.on("log", data => {
+      consoleOutput.textContent += data;
+    });
+  </script>
+</body>
+</html>
