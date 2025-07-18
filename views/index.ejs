@@ -1,14 +1,15 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ADPanel v13</title>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ADPanel v12</title>
 <link rel="stylesheet" href="/style.css"></head><body>
-<h1>ADPanel v13</h1>
+<h1>ADPanel v12</h1>
 <form action="/upload" method="POST" enctype="multipart/form-data">
   <input type="file" name="file" accept=".zip" required>
   <button>Upload ZIP</button>
 </form>
 <div class="list">
-<% bots.forEach(bot=>{ %>
-<div class="bot-item"><span><%= bot %></span>
-<a href="/bot/<%= bot %>"><button>Manage</button></a></div>
+<% bots.forEach(bot => { %>
+  <div class="bot-item"><span><%= bot %></span>
+    <a href="/bot/<%= bot %>"><button>Manage</button></a>
+  </div>
 <% }) %>
 </div>
 </body></html>
