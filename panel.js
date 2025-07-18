@@ -98,10 +98,7 @@ io.on('connection', socket => {
   socket.on('action', data => {
     if (data.cmd === 'run') {
       if (proc) proc.kill();
-      if (proc) proc.kill();
-      const options = { cwd: path.join(BOTS_DIR, data.bot) };
-      if (data.port) options.env = { ...process.env, PORT: data.port };
-      proc = spawn('node', [data.file], options);
+      proc = spawn('node', [data.file], { cwd: path.join(BOTS_DIR,data.bot) });
       proc.stdout.on('data', d=> socket.emit('output', d.toString()));
       proc.stderr.on('data', d=> socket.emit('output', d.toString()));
     } else if (data.cmd === 'stop') {
