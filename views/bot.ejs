@@ -1,82 +1,48 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Manage <%= bot %></title>
-<link rel="stylesheet" href="/style.css"><script src="/socket.io/socket.io.js"></script></head><body>
-<h1>Manage Bot: <%= bot %></h1>
-<div class="controls">
+<!DOCTYPE html>
+<html>
+<head><title>ADPanel</title></head>
+<body>
+  <h1>Select Script</h1>
+  <input type="file" id="fileInput" accept=".js,.html" />
+  <button id="uploadBtn">Upload</button>
+  <br><br>
+  <label>Script:</label>
   <select id="scriptSelect"></select>
-  <button onclick="run()">Run</button>
-  <button onclick="stop()">Stop</button>
-  <select id="nodever">
-    <% nodeVersions.forEach(v=>{ %><option value="<%=v%>"><%= v %></option><% }) %>
-  </select>
-  <button onclick="install()">Install Node.js</button>
-</div>
-<h2>Console</h2><pre id="console"></pre>
-<h2>File Manager</h2>
-<div id="breadcrumbs"></div>
-<ul id="entries"></ul>
-<input type="file" id="fileUpload"><button onclick="upload()">Upload File</button>
-<div id="editor" style="display:none;">
-  <h3 id="edit-path"></h3>
-  <textarea id="edit-content"></textarea><br>
-  <button onclick="save()">Save</button>
-  <button onclick="discard()">Discard</button>
-</div>
+  <label>Port:</label>
+  <input type="number" id="portInput" value="3000" />
+  <button id="runBtn">Run</button>
+  <pre id="console"></pre>
+<script src="/socket.io/socket.io.js"></script>
 <script>
-const bot = "<%= bot %>";
 const socket = io();
-socket.on('output', d=>document.getElementById('console').textContent+=d);
-socket.on('fileData', d=> {
-  document.getElementById('editor').style.display='block';
-  document.getElementById('edit-path').textContent = d.path;
-  const ta = document.getElementById('edit-content');
-  ta.value = d.content;
-  ta.dataset.original = d.content;
-});
-
-let currentPath='';
-function loadExplorer(path='') {
-  fetch(`/explore/${bot}?path=${encodeURIComponent(path)}`)
-    .then(r=>r.json()).then(data=>{
-      currentPath = data.path;
-      document.getElementById('breadcrumbs').innerHTML = '<a href="#" onclick="loadExplorer(\'\')">Root</a>' + 
-  (data.path ? ' / ' + data.path.split('/').join(' / ') : '');
-      const ul = document.getElementById('entries'); ul.innerHTML='';
-      data.entries.forEach(e=>{
-        const li = document.createElement('li');
-        if(e.isDir) {
-          li.textContent='[DIR] '+e.name;
-          li.onclick = ()=>loadExplorer(currentPath?currentPath+'/'+e.name:e.name);
-        } else {
-          li.textContent=e.name;
-          li.onclick = ()=> socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
-        }
-        const del = document.createElement('button');
-        del.textContent='Delete';
-        del.onclick = ev=>{ ev.stopPropagation(); socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir}); loadExplorer(currentPath); };
-        li.appendChild(del);
-        ul.appendChild(li);
-      });
-      const scripts = data.entries.filter(e=>!e.isDir && (e.name.endsWith('.js') || e.name.endsWith('.html'))).map(e=>e.name);
-      document.getElementById('scriptSelect').innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
+document.getElementById('uploadBtn').onclick = () => {
+  const file = document.getElementById('fileInput').files[0];
+  const data = new FormData();
+  data.append('file', file);
+  fetch('/upload', {method:'POST', body:data}).then(()=>refresh());
+};
+document.getElementById('runBtn').onclick = () => {
+  const file = document.getElementById('scriptSelect').value;
+  const port = document.getElementById('portInput').value;
+  socket.emit('run',{bot:file.split('/')[0], file, port});
+};
+function refresh() {
+  fetch('/list').then(r=>r.json()).then(data=>{
+    const sel = document.getElementById('scriptSelect');
+    sel.innerHTML = '';
+    data.forEach(item=>{
+      if(item.endsWith('.js')||item.endsWith('.html')){
+        const opt = document.createElement('option');
+        opt.value = item; opt.text = item;
+        sel.add(opt);
+      }
     });
+  });
 }
-function run(){ document.getElementById('console').textContent=''; socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
-function stop(){ socket.emit('action',{bot,cmd:'stop'}); }
-function install(){ socket.emit('action',{bot,cmd:'install',version:document.getElementById('nodever').value}); }
-function upload(){
-  const f=document.getElementById('fileUpload').files[0]; if(!f) return;
-  const fd = new FormData(); fd.append('file', f);
-  fetch(`/upload?`,{method:'POST',body:fd}).then(()=>loadExplorer(currentPath));
-}
-function save(){
-  const path = document.getElementById('edit-path').textContent;
-  const content = document.getElementById('edit-content').value;
-  socket.emit('writeFile',{bot,path,content});
-}
-function discard(){
-  const ta = document.getElementById('edit-content');
-  ta.value = ta.dataset.original;
-}
-loadExplorer();
+socket.on('output', msg => {
+  document.getElementById('console').textContent += msg;
+});
+refresh();
 </script>
-</body></html>
+</body>
+</html>
