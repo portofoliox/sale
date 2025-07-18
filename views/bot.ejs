@@ -11,41 +11,49 @@
 <div id="breadcrumbs"></div>
 <ul id="entries"></ul>
 <input type="file" id="fileUpload"><button onclick="upload()">Upload File</button>
+<div id="editor" style="display:none;">
+  <h3 id="edit-path"></h3>
+  <textarea id="edit-content"></textarea><br>
+  <button onclick="save()">Save</button>
+  <button onclick="discard()">Discard</button>
+</div>
 <script>
 const bot = "<%= bot %>";
 const socket = io();
 socket.on('output', d=>document.getElementById('console').textContent+=d);
-socket.on('fileData', d=>{ const content=prompt('Edit '+d.path, d.content); if(content!==null) socket.emit('writeFile',{bot, path:d.path, content}); });
+socket.on('fileData', d=> {
+  document.getElementById('editor').style.display='block';
+  document.getElementById('edit-path').textContent = d.path;
+  const ta = document.getElementById('edit-content');
+  ta.value = d.content;
+  ta.dataset.original = d.content;
+});
 
 let currentPath='';
 function loadExplorer(path='') {
   fetch(`/explore/${bot}?path=${encodeURIComponent(path)}`)
     .then(r=>r.json()).then(data=>{
       currentPath = data.path;
-      const bc = data.path.split('/').filter(Boolean);
-      document.getElementById('breadcrumbs').innerHTML = [''].concat(bc).map((p,i)=>{
-        const name = p || 'root';
-        return `<a href="#" onclick="loadExplorer('${bc.slice(0,i).join('/')}')">${name}</a>`;
-      }).join(' / ');
+      document.getElementById('breadcrumbs').innerHTML = data.path.split('/').filter(Boolean)
+        .map((p,i)=>`<a href="#" onclick="loadExplorer('${data.path.split('/').slice(0,i+1).join('/')}')">${p}</a>`).join(' / ');
       const ul = document.getElementById('entries'); ul.innerHTML='';
       data.entries.forEach(e=>{
         const li = document.createElement('li');
         if(e.isDir) {
-          li.textContent = '[DIR] '+e.name;
+          li.textContent='[DIR] '+e.name;
           li.onclick = ()=>loadExplorer(currentPath?currentPath+'/'+e.name:e.name);
         } else {
-          li.textContent = e.name;
-          li.onclick = ()=> { socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name}); };
+          li.textContent=e.name;
+          li.onclick = ()=> socket.emit('readFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name});
         }
         const del = document.createElement('button');
         del.textContent='Delete';
-        del.onclick = e1=>{ e1.stopPropagation(); socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir}); };
+        del.onclick = ev=>{ ev.stopPropagation(); socket.emit('deleteFile',{bot,path:currentPath?currentPath+'/'+e.name:e.name,isDir:e.isDir}); loadExplorer(currentPath); };
         li.appendChild(del);
         ul.appendChild(li);
       });
       const scripts = data.entries.filter(e=>!e.isDir && e.name.endsWith('.js')).map(e=>e.name);
-      const sel = document.getElementById('scriptSelect');
-      sel.innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
+      document.getElementById('scriptSelect').innerHTML = scripts.map(s=>`<option value="${s}">${s}</option>`).join('');
     });
 }
 function run(){ document.getElementById('console').textContent=''; socket.emit('action',{bot,cmd:'run',file:document.getElementById('scriptSelect').value}); }
@@ -54,6 +62,15 @@ function upload(){
   const f=document.getElementById('fileUpload').files[0]; if(!f) return;
   const fd = new FormData(); fd.append('file', f);
   fetch(`/upload?`,{method:'POST',body:fd}).then(()=>loadExplorer(currentPath));
+}
+function save(){
+  const path = document.getElementById('edit-path').textContent;
+  const content = document.getElementById('edit-content').value;
+  socket.emit('writeFile',{bot,path,content});
+}
+function discard(){
+  const ta = document.getElementById('edit-content');
+  ta.value = ta.dataset.original;
 }
 loadExplorer();
 </script>

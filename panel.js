@@ -11,8 +11,6 @@ const { spawn } = require('child_process');
 const upload = multer({ dest: 'uploads/' });
 const BOTS_DIR = path.join(__dirname, 'bots');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-
-// ensure directories exist
 [BOTS_DIR, UPLOADS_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -21,17 +19,11 @@ app.set('view engine','ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-function listJsFiles(folder) {
-  return fs.readdirSync(folder).filter(f=>f.endsWith('.js'));
-}
-
-// Home
 app.get('/', (req, res) => {
-  const bots = fs.existsSync(BOTS_DIR) ? fs.readdirSync(BOTS_DIR) : [];
+  const bots = fs.readdirSync(BOTS_DIR);
   res.render('index', { bots });
 });
 
-// Upload ZIP
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.redirect('/');
   try {
@@ -52,17 +44,15 @@ app.post('/upload', upload.single('file'), (req, res) => {
       return null;
     }
     const src = findRoot(temp);
-    if (!src) throw 'No js';
     const dest = path.join(BOTS_DIR,name);
     if (fs.existsSync(dest)) fs.rmSync(dest,{recursive:true,force:true});
     fs.renameSync(src,dest);
     fs.rmSync(req.file.path,{force:true});
     fs.rmSync(temp,{recursive:true,force:true});
-  } catch(e){ console.error(e); }
+  } catch(e) { console.error(e); }
   res.redirect('/');
 });
 
-// Manage page
 app.get('/bot/:bot', (req, res) => {
   const bot = req.params.bot;
   const botDir = path.join(BOTS_DIR,bot);
@@ -70,7 +60,6 @@ app.get('/bot/:bot', (req, res) => {
   res.render('bot', { bot });
 });
 
-// Explorer endpoint
 app.get('/explore/:bot', (req, res) => {
   const bot = req.params.bot;
   const rel = req.query.path || '';
@@ -83,15 +72,11 @@ app.get('/explore/:bot', (req, res) => {
   res.json({ path: rel, entries });
 });
 
-// File download/read
 app.get('/file/:bot/*', (req, res) => {
-  const bot = req.params.bot;
-  const rel = req.params[0];
-  const full = path.join(BOTS_DIR,bot,rel);
+  const full = path.join(BOTS_DIR,req.params.bot,req.params[0]);
   res.sendFile(full);
 });
 
-// File operations and run/stop
 io.on('connection', socket => {
   let proc;
   socket.on('readFile', data => {
@@ -122,4 +107,4 @@ io.on('connection', socket => {
   });
 });
 
-http.listen(3000,()=>console.log('ADPanel_Final_v10 on http://localhost:3000'));
+http.listen(3000,()=>console.log('ADPanel_Final_v11 on http://localhost:3000'));
