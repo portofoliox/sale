@@ -1,7 +1,7 @@
 body { font-family: Arial, sans-serif; background: #111; color: #f2f2f2; margin: 0; padding: 20px; }
 h1 { margin-bottom: 20px; }
-.node-version, .upload { margin-bottom: 20px; }
+.upload { margin-bottom: 20px; }
 .bot { background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-.bot button { margin-right: 5px; margin-top: 5px; }
+.controls button, .install-node button, .bot button { margin-right: 5px; margin-top: 5px; }
 .console pre { background: #000; color: #0f0; padding: 10px; max-height: 150px; overflow-y: auto; border-radius: 4px; }
 .files a { color: #4fc3f7; }

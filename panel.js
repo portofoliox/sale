@@ -11,6 +11,7 @@ const { exec } = require('child_process');
 const upload = multer({ dest: 'uploads/' });
 const BOTS_DIR = path.join(__dirname, 'bots');
 const NODE_VERSIONS_DIR = path.join(__dirname, 'node_versions');
+
 if (!fs.existsSync(BOTS_DIR)) fs.mkdirSync(BOTS_DIR);
 if (!fs.existsSync(NODE_VERSIONS_DIR)) fs.mkdirSync(NODE_VERSIONS_DIR);
 
@@ -18,19 +19,17 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 
-function findBotJS(folder) {
-  const files = fs.readdirSync(folder);
-  for (const file of files) {
-    const full = path.join(folder, file);
-    if (fs.statSync(full).isFile() && file.toLowerCase() === 'index.js') {
-      return full;
-    }
+function findBotEntry(folder) {
+  const entries = fs.readdirSync(folder);
+  for (const e of entries) {
+    const full = path.join(folder, e);
+    if (fs.statSync(full).isFile() && e.toLowerCase() === 'index.js') return full;
   }
-  for (const file of files) {
-    const full = path.join(folder, file);
+  for (const e of entries) {
+    const full = path.join(folder, e);
     if (fs.statSync(full).isDirectory()) {
-      const found = findBotJS(full);
-      if (found) return found;
+      const f = findBotEntry(full);
+      if (f) return f;
     }
   }
   return null;
@@ -42,19 +41,13 @@ app.get('/', (req, res) => {
   res.render('index', { bots, nodeVersions });
 });
 
-app.post('/install-node', (req, res) => {
-  const version = req.body.version;
-  const script = `curl -fsSL https://deb.nodesource.com/setup_${version} | bash - && apt-get install -y nodejs`;
-  exec(script, () => res.redirect('/'));
-});
-
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.redirect('/');
   const zip = new AdmZip(req.file.path);
   const name = path.parse(req.file.originalname).name.replace(/[^a-zA-Z0-9-_]/g, '');
   const temp = path.join(__dirname, 'uploads', name);
   zip.extractAllTo(temp, true);
-  const src = findBotJS(temp);
+  const src = findBotEntry(temp);
   if (!src) return res.redirect('/');
   const dest = path.join(BOTS_DIR, name);
   if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true });
@@ -67,13 +60,20 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.redirect('/');
 });
 
-['start','stop','restart'].forEach(cmd => {
+['start', 'stop', 'restart'].forEach(cmd => {
   app.post(`/${cmd}/:bot`, (req, res) => {
     const bot = req.params.bot;
-    const botPath = findBotJS(path.join(BOTS_DIR, bot));
+    const botPath = findBotEntry(path.join(BOTS_DIR, bot));
     if (!botPath) return res.redirect('/');
     exec(`pm2 ${cmd} ${botPath} --name "${bot}"`, () => res.redirect('/'));
   });
+});
+
+app.post('/install-node/:bot', (req, res) => {
+  const bot = req.params.bot;
+  const version = req.body.version;
+  const script = `curl -fsSL https://deb.nodesource.com/setup_${version} | bash - && apt-get install -y nodejs`;
+  exec(script, () => res.redirect('/'));
 });
 
 app.get('/files/:bot', (req, res) => {
@@ -93,17 +93,20 @@ app.get('/files/:bot', (req, res) => {
   walk(dir);
   res.json(list);
 });
+
 app.get('/file/:bot/*', (req, res) => {
   const rel = req.params[0];
   const full = path.join(BOTS_DIR, req.params.bot, rel);
   res.sendFile(full);
 });
+
 app.post('/file/edit/:bot', (req, res) => {
   const { path: rel, content } = req.body;
   const full = path.join(BOTS_DIR, req.params.bot, rel);
   fs.writeFileSync(full, content);
   res.redirect('/');
 });
+
 app.post('/file/delete/:bot', (req, res) => {
   const full = path.join(BOTS_DIR, req.params.bot, req.body.path);
   fs.rmSync(full);
@@ -117,4 +120,4 @@ io.on('connection', socket => {
   });
 });
 
-http.listen(3000, () => console.log('ADPanel Final running on http://localhost:3000'));
+http.listen(3000, () => console.log('ADPanel Final v2 running on http://localhost:3000'));

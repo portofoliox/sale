@@ -2,23 +2,12 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>ADPanel Final</title>
+  <title>ADPanel Final v2</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>ADPanel Final</h1>
-  <div class="node-version">
-    <h2>Install Node.js</h2>
-    <form action="/install-node" method="POST">
-      <select name="version">
-        <% nodeVersions.forEach(v => { %>
-          <option value="<%= v %>"><%= v %></option>
-        <% }) %>
-      </select>
-      <button>Install</button>
-    </form>
-  </div>
+  <h1>ADPanel Final v2</h1>
   <div class="upload">
     <form action="/upload" method="POST" enctype="multipart/form-data">
       <input type="file" name="file" accept=".zip" required>
@@ -28,34 +17,63 @@
   <% bots.forEach(bot => { %>
     <div class="bot">
       <h3><%= bot %></h3>
-      <button onclick="startBot('<%= bot %>')">Start</button>
-      <button onclick="stopBot('<%= bot %>')">Stop</button>
-      <button onclick="restartBot('<%= bot %>')">Restart</button>
-      <button onclick="showLogs('<%= bot %>')">Console</button>
-      <button onclick="showFiles('<%= bot %>')">Files</button>
-      <div class="console"><pre id="log-<%= bot %>"></pre></div>
-      <div class="files" id="files-<%= bot %>"></div>
+      <div class="controls">
+        <form action="/start/<%= bot %>" method="POST"><button>Start</button></form>
+        <form action="/stop/<%= bot %>" method="POST"><button>Stop</button></form>
+        <form action="/restart/<%= bot %>" method="POST"><button>Restart</button></form>
+      </div>
+      <div class="install-node">
+        <form action="/install-node/<%= bot %>" method="POST">
+          <select name="version">
+            <% nodeVersions.forEach(v => { %>
+              <option value="<%= v %>"><%= v %></option>
+            <% }) %>
+          </select>
+          <button>Install Node.js</button>
+        </form>
+      </div>
+      <div class="console">
+        <button onclick="showLogs('<%= bot %>')">Console</button>
+        <pre id="log-<%= bot %>"></pre>
+      </div>
+      <div class="files">
+        <button onclick="showFiles('<%= bot %>')">Files</button>
+        <div id="files-<%= bot %>"></div>
+      </div>
     </div>
   <% }) %>
 <script>
   const socket = io();
-  function startBot(bot) { fetch('/start/'+bot, {method:'POST'}).then(()=>location.reload()); }
-  function stopBot(bot) { fetch('/stop/'+bot, {method:'POST'}).then(()=>location.reload()); }
-  function restartBot(bot) { fetch('/restart/'+bot, {method:'POST'}).then(()=>location.reload()); }
   function showLogs(bot) {
     const pre = document.getElementById('log-'+bot);
     pre.textContent = '';
     socket.emit('logs', bot);
-    socket.on('log', data => pre.textContent += data);
+    socket.on('log', d => pre.textContent += d);
   }
   function showFiles(bot) {
     fetch('/files/'+bot).then(res=>res.json()).then(files=>{
       const div = document.getElementById('files-'+bot);
       div.innerHTML = '';
       files.forEach(f=>{
-        const a=document.createElement('a');
-        a.href=`/file/${bot}/${f}`; a.target='_blank'; a.textContent=f;
-        div.appendChild(a); div.appendChild(document.createElement('br'));
+        const link = document.createElement('a');
+        link.href = `/file/${bot}/${f}`; link.target='_blank'; link.textContent = f;
+        const delBtn = document.createElement('button');
+        delBtn.textContent='Delete';
+        delBtn.onclick = ()=>fetch(`/file/delete/${bot}`, {
+          method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:`path=${encodeURIComponent(f)}`}).then(()=>showFiles(bot));
+        const editBtn = document.createElement('button');
+        editBtn.textContent='Edit';
+        editBtn.onclick = ()=>fetch(`/file/${bot}/${f}`).then(res=>res.text()).then(txt=>{
+          const c = prompt('Edit '+f, txt);
+          if(c!==null){
+            fetch(`/file/edit/${bot}`, {
+              method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+              body:`path=${encodeURIComponent(f)}&content=${encodeURIComponent(c)}`
+            }).then(()=>showFiles(bot));
+          }
+        });
+        div.appendChild(link); div.appendChild(editBtn); div.appendChild(delBtn); div.appendChild(document.createElement('br'));
       });
     });
   }
