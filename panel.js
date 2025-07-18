@@ -27,15 +27,6 @@ app.get('/', (req, res) => {
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-  // Handle direct HTML file upload
-  if (req.file.originalname.toLowerCase().endsWith('.html')) {
-    const name = path.parse(req.file.originalname).name.replace(/[^\w-]/g, '');
-    const destDir = path.join(BOTS_DIR, name);
-    if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true, force: true });
-    fs.mkdirSync(destDir, { recursive: true });
-    fs.renameSync(req.file.path, path.join(destDir, req.file.originalname));
-    return res.redirect('/');
-  }
   if (!req.file) return res.redirect('/');
   try {
     const zip = new AdmZip(req.file.path);
