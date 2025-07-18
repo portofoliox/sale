@@ -3,20 +3,60 @@
 <h1>Manage Bot: <%= bot %></h1>
 <div class="controls">
   <select id="scriptSelect"><% scripts.forEach(s=>{ %><option><%= s %></option><% }) %></select>
-  <button onclick="run()">Run</button>
-  <button onclick="stop()">Stop</button>
+  <button onclick="action('run')">Run</button>
+  <button onclick="action('stop')">Stop</button>
 </div>
 <h2>Console</h2><pre id="console"></pre>
+<h2>Files</h2>
+<input type="file" id="newfile">
+<button onclick="uploadFile()">Upload File</button>
+<ul id="filelist"></ul>
+<div id="editor" style="display:none;">
+  <h3 id="editname"></h3>
+  <textarea id="editcontent"></textarea><br>
+  <button onclick="save()">Save</button>
+  <button onclick="del()">Delete</button>
+</div>
 <script>
-const socket = io();
-function run() {
-  document.getElementById('console').textContent = '';
-  const file = document.getElementById('scriptSelect').value;
-  socket.emit('action',{bot:'<%= bot %>',cmd:'run',file});
+const socket=io(), bot="<%= bot %>";
+function action(cmd){ socket.emit('action',{bot,cmd,file:document.getElementById('scriptSelect').value}); }
+socket.on('output', d=>document.getElementById('console').textContent+=d);
+
+function loadFiles(){
+  const files=<%- JSON.stringify(files) %>;
+  const ul=document.getElementById('filelist'); ul.innerHTML='';
+  files.forEach(f=>{
+    const li=document.createElement('li');
+    li.textContent=f;
+    li.onclick=()=>{
+      socket.emit('action',{bot,cmd:'read',editPath:f});
+    };
+    ul.appendChild(li);
+  });
 }
-function stop() {
-  socket.emit('action',{bot:'<%= bot %>',cmd:'stop'});
+socket.on('fileData', d=>{
+  document.getElementById('editor').style.display='block';
+  document.getElementById('editname').textContent=d.path;
+  document.getElementById('editcontent').value=d.content;
+});
+function save(){
+  const p=document.getElementById('editname').textContent;
+  const c=document.getElementById('editcontent').value;
+  socket.emit('action',{bot,cmd:'write',editPath:p,content:c});
 }
-socket.on('output', d=>document.getElementById('console').textContent += d);
+function del(){
+  const p=document.getElementById('editname').textContent;
+  socket.emit('action',{bot,cmd:'delete',editPath:p});
+  document.getElementById('editor').style.display='none';
+  loadFiles();
+}
+function uploadFile(){
+  const inp=document.getElementById('newfile');
+  if(!inp.files[0])return;
+  const fd=new FormData();
+  fd.append('newfile', inp.files[0]);
+  fetch(`/uploadfile/${bot}`,{method:'POST',body:fd}).then(()=> location.reload());
+}
+loadFiles();
 </script>
 </body></html>
