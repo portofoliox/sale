@@ -10,10 +10,8 @@ const { exec } = require('child_process');
 
 const upload = multer({ dest: 'uploads/' });
 const BOTS_DIR = path.join(__dirname, 'bots');
-const NODE_VERSIONS_DIR = path.join(__dirname, 'node_versions');
 
 if (!fs.existsSync(BOTS_DIR)) fs.mkdirSync(BOTS_DIR);
-if (!fs.existsSync(NODE_VERSIONS_DIR)) fs.mkdirSync(NODE_VERSIONS_DIR);
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -28,8 +26,8 @@ function findBotEntry(folder) {
   for (const e of entries) {
     const full = path.join(folder, e);
     if (fs.statSync(full).isDirectory()) {
-      const f = findBotEntry(full);
-      if (f) return f;
+      const found = findBotEntry(full);
+      if (found) return found;
     }
   }
   return null;
@@ -47,20 +45,18 @@ app.post('/upload', upload.single('file'), (req, res) => {
   const name = path.parse(req.file.originalname).name.replace(/[^a-zA-Z0-9-_]/g, '');
   const temp = path.join(__dirname, 'uploads', name);
   zip.extractAllTo(temp, true);
-  const src = findBotEntry(temp);
-  if (!src) return res.redirect('/');
+  const entry = findBotEntry(temp);
+  if (!entry) return res.redirect('/');
+  const srcDir = path.dirname(entry);
   const dest = path.join(BOTS_DIR, name);
   if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true });
-  fs.mkdirSync(dest);
-  fs.readdirSync(temp).forEach(f => {
-    fs.renameSync(path.join(temp, f), path.join(dest, f));
-  });
+  fs.renameSync(srcDir, dest);
   fs.rmSync(req.file.path);
   fs.rmSync(temp, { recursive: true });
   res.redirect('/');
 });
 
-['start', 'stop', 'restart'].forEach(cmd => {
+['start','stop','restart'].forEach(cmd => {
   app.post(`/${cmd}/:bot`, (req, res) => {
     const bot = req.params.bot;
     const botPath = findBotEntry(path.join(BOTS_DIR, bot));
@@ -70,10 +66,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 app.post('/install-node/:bot', (req, res) => {
-  const bot = req.params.bot;
   const version = req.body.version;
-  const script = `curl -fsSL https://deb.nodesource.com/setup_${version} | bash - && apt-get install -y nodejs`;
-  exec(script, () => res.redirect('/'));
+  exec(`curl -fsSL https://deb.nodesource.com/setup_${version} | bash - && apt-get install -y nodejs`, () => res.redirect('/'));
 });
 
 app.get('/files/:bot', (req, res) => {
@@ -102,14 +96,12 @@ app.get('/file/:bot/*', (req, res) => {
 
 app.post('/file/edit/:bot', (req, res) => {
   const { path: rel, content } = req.body;
-  const full = path.join(BOTS_DIR, req.params.bot, rel);
-  fs.writeFileSync(full, content);
+  fs.writeFileSync(path.join(BOTS_DIR, req.params.bot, rel), content);
   res.redirect('/');
 });
 
 app.post('/file/delete/:bot', (req, res) => {
-  const full = path.join(BOTS_DIR, req.params.bot, req.body.path);
-  fs.rmSync(full);
+  fs.rmSync(path.join(BOTS_DIR, req.params.bot, req.body.path));
   res.redirect('/');
 });
 
@@ -120,4 +112,4 @@ io.on('connection', socket => {
   });
 });
 
-http.listen(3000, () => console.log('ADPanel Final v2 running on http://localhost:3000'));
+http.listen(3000, () => console.log('ADPanel Final v3 running on http://localhost:3000'));

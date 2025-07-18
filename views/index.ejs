@@ -2,12 +2,12 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>ADPanel Final v2</title>
+  <title>ADPanel Final v3</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>ADPanel Final v2</h1>
+  <h1>ADPanel Final v3</h1>
   <div class="upload">
     <form action="/upload" method="POST" enctype="multipart/form-data">
       <input type="file" name="file" accept=".zip" required>
@@ -57,15 +57,10 @@
       files.forEach(f=>{
         const link = document.createElement('a');
         link.href = `/file/${bot}/${f}`; link.target='_blank'; link.textContent = f;
-        const delBtn = document.createElement('button');
-        delBtn.textContent='Delete';
-        delBtn.onclick = ()=>fetch(`/file/delete/${bot}`, {
-          method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-          body:`path=${encodeURIComponent(f)}`}).then(()=>showFiles(bot));
         const editBtn = document.createElement('button');
         editBtn.textContent='Edit';
         editBtn.onclick = ()=>fetch(`/file/${bot}/${f}`).then(res=>res.text()).then(txt=>{
-          const c = prompt('Edit '+f, txt);
+          const c = prompt('Edit '+f, txt); 
           if(c!==null){
             fetch(`/file/edit/${bot}`, {
               method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -73,6 +68,12 @@
             }).then(()=>showFiles(bot));
           }
         });
+        const delBtn = document.createElement('button');
+        delBtn.textContent='Delete';
+        delBtn.onclick = ()=>fetch(`/file/delete/${bot}`, {
+          method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:`path=${encodeURIComponent(f)}`
+        }).then(()=>showFiles(bot));
         div.appendChild(link); div.appendChild(editBtn); div.appendChild(delBtn); div.appendChild(document.createElement('br'));
       });
     });
